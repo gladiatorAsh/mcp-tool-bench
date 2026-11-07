@@ -1,0 +1,18 @@
+# Each case is a user prompt and the tool call we expect. expect_args is a subset match:
+# listed keys must match, extra arguments are fine. A value starting with "~" is a contains match.
+cases:
+  - id: lookup-by-number
+    prompt: What material is part BRK-0042 made of?
+    expect_tool: get_part
+    expect_args: { part_number: BRK-0042 }
+  - id: search-by-description
+    prompt: Find me the aluminium mounting brackets.
+    expect_tool: search_parts
+    expect_args: { query: "~bracket" }
+  - id: release
+    prompt: Release BRK-0042 with the note "passed FEA".
+    expect_tool: release
+    expect_args: { part_number: BRK-0042, note: "~FEA" }
+  - id: no-tool-needed
+    prompt: What does FEA stand for?
+    expect_tool: null
