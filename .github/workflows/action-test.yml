@@ -1,0 +1,24 @@
+name: Action self-test
+on:
+  push:
+    branches: [main]
+  pull_request:
+jobs:
+  lint-sample:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run the action against the sample server
+        id: bench
+        uses: ./
+        with:
+          server: python examples/sample_server.py
+      - name: Check the report
+        run: |
+          python - <<'PY'
+          import json
+          r = json.load(open("${{ steps.bench.outputs.lint-report }}"))
+          assert r["tools"] == 3, r
+          assert any(f["rule"] == "description-short" for f in r["findings"]), r
+          print("action produced the expected report")
+          PY

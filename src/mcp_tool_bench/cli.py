@@ -17,6 +17,7 @@ from pathlib import Path
 
 from .connect import fetch_tools
 from .evals import load_cases, openai_chooser, run_cases, summarize
+from .github import report_eval, report_lint
 from .lint import lint_tools
 
 
@@ -34,6 +35,7 @@ def cmd_lint(args: argparse.Namespace) -> int:
         mark = "✗" if f.level == "error" else "!"
         print(f"  {mark} {f.tool:<28} {f.rule:<20} {f.message}")
     print(f"{len(report.errors)} errors, {len(report.warnings)} warnings")
+    report_lint(info, report)
     _write(args.json, {"server": info, "tools": report.tools, "findings": [asdict(f) for f in report.findings]})
     return 1 if report.errors or (args.strict and report.warnings) else 0
 
@@ -53,6 +55,7 @@ def cmd_eval(args: argparse.Namespace) -> int:
         print(f"  {mark} {r.id:<24} {r.latency_ms:>6} ms  {detail}")
     s = summarize(results)
     print(f"{s['passed']}/{s['cases']} passed · tool accuracy {s['tool_accuracy']:.0%} · args {s['arg_accuracy']:.0%} · p50 {s['p50_ms']} ms")
+    report_eval(args.model, s, results)
     _write(args.json, {"model": args.model, "summary": s, "results": [asdict(r) for r in results]})
     return 0 if s["tool_accuracy"] >= args.min_accuracy else 1
 

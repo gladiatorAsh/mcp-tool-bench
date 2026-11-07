@@ -12,7 +12,7 @@ An MCP server can pass its unit tests and still fail in practice. The model pick
 ## Quick start
 
 ```bash
-pip install -e ".[eval,dev]"
+pip install "mcp-tool-bench[eval]"     # or, from a clone: pip install -e ".[eval,dev]"
 
 # Lint the bundled sample server (launched over stdio)
 mcp-tool-bench lint "python examples/sample_server.py"
@@ -54,6 +54,45 @@ cases:
 
 Both commands exit non-zero on failure (`--strict` for lint warnings, `--min-accuracy` for evals), so they drop straight into CI.
 
+## GitHub Action
+
+Check your MCP server on every pull request. Findings show up as annotations on the PR and as a table in the job summary.
+
+```yaml
+# .github/workflows/mcp-bench.yml
+name: MCP bench
+on: [pull_request]
+jobs:
+  bench:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      models: read          # only needed for evals on GitHub Models
+    steps:
+      - uses: actions/checkout@v4
+      - uses: gladiatorAsh/mcp-tool-bench@main
+        with:
+          setup: pip install -e .
+          server: python -m my_server
+          # Optional: tool-selection evals, free on GitHub Models with the workflow token
+          cases: tests/mcp-cases.yaml
+          min-accuracy: "0.9"
+```
+
+| Input | Default | |
+| --- | --- | --- |
+| `server` | required | Command that starts the server over stdio, or a Streamable HTTP URL |
+| `setup` | | Command to install the server first |
+| `working-directory` | `.` | Where to run setup and the server |
+| `strict` | `false` | Fail on warnings as well as errors |
+| `cases` | | YAML eval cases; leave empty to only lint |
+| `model` | `openai/gpt-4.1-mini` | Model for evals |
+| `base-url` | GitHub Models | Any OpenAI-compatible endpoint |
+| `api-key` | workflow token | Key for that endpoint |
+| `min-accuracy` | `0.9` | Fail below this tool-selection accuracy |
+
+Outputs `lint-report` and `eval-report` are paths to the JSON reports, for uploading as artifacts.
+
 ## What lint checks
 
 | Rule | Level | Why it matters |
@@ -70,7 +109,8 @@ Both commands exit non-zero on failure (`--strict` for lint warnings, `--min-acc
 - [x] `eval` engine: subset argument matching, accuracy and latency summary, JSON reports
 - [x] Tests, including an in-process server
 - [ ] Compare several models in one run and write an HTML report
-- [ ] GitHub Action: lint and eval on every PR to an MCP server repo
+- [x] GitHub Action: lint and eval on every PR, with annotations and a job summary
+- [x] Release workflow: tag to publish on PyPI (trusted publishing)
 - [ ] Protocol conformance probes: stateless requests, `tools/list` caching (`ttlMs`), Tasks lifecycle
 - [ ] Generate starter cases from the tool catalog with a model, then review them by hand
 - [ ] Run against popular public MCP servers and publish the results
