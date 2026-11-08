@@ -24,7 +24,7 @@ mcp-tool-bench eval "python -m freecad_mcp" --cases benchmarks/cad/cases.yaml \
   --base-url https://models.github.ai/inference --api-key-env GITHUB_TOKEN --delay 4
 ```
 
-The [CAD benchmark workflow](../../.github/workflows/cad-benchmark.yml) runs it weekly on GitHub Models and uploads the JSON reports.
+The [CAD benchmark workflow](../../.github/workflows/cad-benchmark.yml) runs it weekly and uploads the JSON reports. It uses GitHub Models with the workflow token by default. To use any other OpenAI-compatible endpoint, set the `BENCH_BASE_URL` and `BENCH_API_KEY` repository secrets. A preflight step stops the run with a clear error if the endpoint doesn't return completions.
 
 ## Scoring
 
