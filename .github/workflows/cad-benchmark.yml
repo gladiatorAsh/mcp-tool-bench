@@ -7,6 +7,9 @@ on:
       models:
         description: Space-separated GitHub Models ids
         default: "openai/gpt-4.1-mini openai/gpt-4o-mini openai/gpt-4.1-nano"
+      limit:
+        description: Only run the first N cases (0 = all)
+        default: "0"
   schedule:
     - cron: "17 14 * * 1"   # Mondays
 
@@ -42,7 +45,7 @@ jobs:
           mcp-tool-bench eval "python -m ${{ matrix.module }}" \
             --cases benchmarks/cad/cases.yaml "${flags[@]}" \
             --base-url https://models.github.ai/inference --api-key-env GITHUB_MODELS_TOKEN \
-            --delay 4 --min-accuracy 0 --json "reports/${{ matrix.server }}.json"
+            --delay 4 --min-accuracy 0 --limit "${{ inputs.limit || 0 }}" --json "reports/${{ matrix.server }}.json"
       - uses: actions/upload-artifact@v4
         if: always()
         with:

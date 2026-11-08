@@ -126,7 +126,12 @@ def openai_chooser(model: str, base_url: str | None = None, api_key: str | None 
         messages.append({"role": "user", "content": prompt})
         for attempt in range(retries + 1):
             try:
-                resp = client.chat.completions.create(model=model, messages=messages, tools=tools, tool_choice="auto", temperature=0)
+                raw = client.chat.completions.with_raw_response.create(model=model, messages=messages, tools=tools, tool_choice="auto", temperature=0)
+                resp = raw.parse()
+                if isinstance(resp, str) or not hasattr(resp, "choices"):
+                    http = raw.http_response
+                    body = http.text[:300].replace("\n", " ")
+                    raise RuntimeError(f"unexpected response: HTTP {http.status_code}, {http.headers.get('content-type')}: {body}")
                 break
             except (RateLimitError, APIStatusError) as e:
                 status = getattr(e, "status_code", 429)

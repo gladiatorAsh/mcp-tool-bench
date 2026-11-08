@@ -60,7 +60,7 @@ def cmd_lint(args: argparse.Namespace) -> int:
 
 def cmd_eval(args: argparse.Namespace) -> int:
     info, tools = _tools(args.server)
-    cases = load_cases(args.cases)
+    cases = load_cases(args.cases)[: args.limit or None]
     api_key = os.environ.get(args.api_key_env) or os.environ.get("OPENAI_API_KEY")
     base_url = args.base_url or os.environ.get("OPENAI_BASE_URL")
     runs = []
@@ -107,6 +107,7 @@ def main(argv: list[str] | None = None) -> int:
     ev.add_argument("--base-url", help="OpenAI-compatible endpoint (Azure OpenAI, GitHub Models, Ollama…)")
     ev.add_argument("--api-key-env", default="OPENAI_API_KEY", help="Environment variable holding the API key")
     ev.add_argument("--min-accuracy", type=float, default=0.9, help="Exit non-zero below this tool accuracy (for CI)")
+    ev.add_argument("--limit", type=int, default=0, help="Only run the first N cases (for quick checks)")
     ev.add_argument("--delay", type=float, default=0.0, help="Seconds to wait between requests (free tiers have per-minute limits)")
     ev.add_argument("--json", help="Write a JSON report here")
     ev.set_defaults(func=cmd_eval)
