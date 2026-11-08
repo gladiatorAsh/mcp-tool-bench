@@ -119,7 +119,10 @@ SYSTEM = "You are an engineering assistant connected to CAD tools. Use a tool wh
 def openai_chooser(model: str, base_url: str | None = None, api_key: str | None = None, system: str = SYSTEM, retries: int = 5) -> Chooser:
     from openai import APIStatusError, OpenAI, RateLimitError  # lazy: lint works without the eval extra
 
-    client = OpenAI(base_url=base_url, api_key=api_key, max_retries=0)
+    headers = {}
+    if base_url and "models.github.ai" in base_url:
+        headers = {"Accept": "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28"}
+    client = OpenAI(base_url=base_url, api_key=api_key, max_retries=0, default_headers=headers)
 
     def choose(prompt: str, tools: list[dict[str, Any]], context: str = ""):
         messages = [{"role": "system", "content": system + (f"\n\nCurrent design state:\n{context.strip()}" if context else "")}]

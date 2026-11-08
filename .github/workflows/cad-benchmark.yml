@@ -35,6 +35,18 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install -e ".[eval]" "git+https://github.com/gladiatorAsh/${{ matrix.server }}"
+      - name: Check GitHub Models access
+        env:
+          GITHUB_MODELS_TOKEN: ${{ github.token }}
+        run: |
+          for variant in plain github-headers; do
+            extra=()
+            [ "$variant" = github-headers ] && extra=(-H "Accept: application/vnd.github+json" -H "X-GitHub-Api-Version: 2022-11-28")
+            code=$(curl -s -o /tmp/resp -w "%{http_code} %{content_type}" https://models.github.ai/inference/chat/completions \
+              -H "Authorization: Bearer $GITHUB_MODELS_TOKEN" -H "Content-Type: application/json" "${extra[@]}" \
+              -d '{"model":"openai/gpt-4.1-mini","messages":[{"role":"user","content":"Say OK"}],"max_tokens":5}')
+            echo "$variant: $code $(head -c 200 /tmp/resp)"
+          done
       - name: Run the benchmark
         env:
           MODELS: ${{ inputs.models || 'openai/gpt-4.1-mini openai/gpt-4o-mini openai/gpt-4.1-nano' }}
