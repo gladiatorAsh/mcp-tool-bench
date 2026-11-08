@@ -60,7 +60,7 @@ def report_eval(model: str, summary: dict[str, Any], results: list[CaseResult]) 
     if not in_actions():
         return
     for r in results:
-        if not r.passed:
+        if not r.passed and not r.skipped:
             detail = r.note or f"expected a different call, got {r.called} {r.args}"
             print(f"::warning title=MCP eval · {_esc(r.id)}::{_esc(detail)}")
     lines = [
@@ -73,5 +73,22 @@ def report_eval(model: str, summary: dict[str, Any], results: list[CaseResult]) 
         "| --- | --- | --- | --- |",
     ]
     for r in results:
+        if r.skipped:
+            continue
         lines.append(f"| {'✅' if r.passed else '❌'} | `{_cell(r.id)}` | `{r.called or '(no tool)'}` | {r.latency_ms} ms |")
+    _summary("\n".join(lines))
+
+
+def report_comparison(info: dict[str, Any], runs: list[dict[str, Any]]) -> None:
+    if not in_actions():
+        return
+    lines = [
+        f"### Model comparison · {info.get('name', 'server')}",
+        "",
+        "| Model | Passed | Tool accuracy | Argument accuracy | p50 |",
+        "| --- | --- | --- | --- | --- |",
+    ]
+    for r in sorted(runs, key=lambda r: -r["summary"]["passed"]):
+        s = r["summary"]
+        lines.append(f"| `{r['model']}` | {s['passed']}/{s['cases']} | {s['tool_accuracy']:.0%} | {s['arg_accuracy']:.0%} | {s['p50_ms']} ms |")
     _summary("\n".join(lines))

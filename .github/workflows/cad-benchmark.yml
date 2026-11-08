@@ -1,0 +1,50 @@
+name: CAD benchmark
+# Runs benchmarks/cad against the CAD MCP servers on GitHub Models (free, uses the workflow token).
+# No CAD software is needed: evals only show the model each server's tool catalog.
+on:
+  workflow_dispatch:
+    inputs:
+      models:
+        description: Space-separated GitHub Models ids
+        default: "openai/gpt-4.1-mini openai/gpt-4o-mini openai/gpt-4.1-nano"
+  schedule:
+    - cron: "17 14 * * 1"   # Mondays
+
+permissions:
+  contents: read
+  models: read
+
+jobs:
+  bench:
+    name: ${{ matrix.server }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - server: freecad-mcp-server
+            module: freecad_mcp
+          - server: fusion-mcp-server
+            module: fusion_mcp
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[eval]" "git+https://github.com/gladiatorAsh/${{ matrix.server }}"
+      - name: Run the benchmark
+        env:
+          MODELS: ${{ inputs.models || 'openai/gpt-4.1-mini openai/gpt-4o-mini openai/gpt-4.1-nano' }}
+          GITHUB_MODELS_TOKEN: ${{ github.token }}
+        run: |
+          flags=()
+          for m in $MODELS; do flags+=(--model "$m"); done
+          mcp-tool-bench eval "python -m ${{ matrix.module }}" \
+            --cases benchmarks/cad/cases.yaml "${flags[@]}" \
+            --base-url https://models.github.ai/inference --api-key-env GITHUB_MODELS_TOKEN \
+            --delay 4 --min-accuracy 0 --json "reports/${{ matrix.server }}.json"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cad-benchmark-${{ matrix.server }}
+          path: reports/

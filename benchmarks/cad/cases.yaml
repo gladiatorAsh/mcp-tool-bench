@@ -1,0 +1,269 @@
+# CAD agent benchmark: realistic mechanical-engineering requests and the first tool call a good agent makes.
+#
+# Tool vocabulary: get_design_info, list_parameters, set_parameter, start_export and get_job are shared by
+# freecad-mcp-server and fusion-mcp-server. Cases that need tools only some CAD servers have list them
+# under `requires`, and are skipped elsewhere.
+#
+# Matching: expect_args is a subset match. "~x" means "contains x", {any: [...]} lists alternatives.
+# Requests that need a look before acting list every acceptable first step in expect_tool.
+
+cases:
+  # ---------- inspect ----------
+  - id: inspect-overview
+    tags: [inspect]
+    prompt: What's in this design?
+    expect_tool: get_design_info
+  - id: inspect-editable-dims
+    tags: [inspect]
+    prompt: List the dimensions I can change.
+    expect_tool: list_parameters
+  - id: inspect-user-params
+    tags: [inspect]
+    prompt: Which parameters did the designer define by hand, as opposed to the ones features created?
+    expect_tool: list_parameters
+  - id: inspect-rebuild-errors
+    tags: [inspect]
+    prompt: Did anything fail to rebuild after my last change?
+    expect_tool: get_design_info
+  - id: inspect-body-count
+    tags: [inspect]
+    prompt: How many solid bodies are in the model?
+    expect_tool: get_design_info
+  - id: inspect-units
+    tags: [inspect]
+    prompt: What units is this model in?
+    expect_tool: get_design_info
+
+  # ---------- edit without knowing the parameter names: look first ----------
+  - id: edit-blind-width
+    tags: [edit, look-first]
+    prompt: Make the bracket 25 mm wide.
+    expect_tool: [list_parameters, get_design_info]
+  - id: edit-blind-wall
+    tags: [edit, look-first]
+    prompt: Thicken the wall to 4 mm.
+    expect_tool: [list_parameters, get_design_info]
+  - id: edit-blind-hole
+    tags: [edit, look-first]
+    prompt: Double the size of the mounting hole.
+    expect_tool: [list_parameters, get_design_info]
+
+  # ---------- edit with the parameters known ----------
+  - id: edit-width
+    tags: [edit]
+    context: &params |
+      Document: Bracket. Final body: Bracket.
+      Parameters: Params.width = 20 mm, Params.thickness = 3 mm, Params.hole_diameter = 6 mm,
+      Params.fillet_radius = 1 mm. Block.Length is driven by Params.width.
+    prompt: Make the bracket 25 mm wide.
+    expect_tool: set_parameter
+    expect_args: { name: "~width", expression: "~25" }
+  - id: edit-thickness-decimal
+    tags: [edit]
+    context: *params
+    prompt: Set the thickness to 4.5 mm.
+    expect_tool: set_parameter
+    expect_args: { name: "~thickness", expression: "~4.5" }
+  - id: edit-hole
+    tags: [edit]
+    context: *params
+    prompt: Make the hole 8 mm in diameter.
+    expect_tool: set_parameter
+    expect_args: { name: "~hole", expression: "~8" }
+  - id: edit-fillet
+    tags: [edit]
+    context: *params
+    prompt: Change the fillet radius to 2 mm.
+    expect_tool: set_parameter
+    expect_args: { name: "~fillet", expression: "~2" }
+  - id: edit-formula
+    tags: [edit, expressions]
+    context: *params
+    prompt: Make the hole diameter always equal twice the thickness, so it updates if the thickness changes.
+    expect_tool: set_parameter
+    expect_args: { name: "~hole", expression: "~thickness" }
+  - id: edit-imperial
+    tags: [edit, units]
+    context: *params
+    prompt: Make the width 1 inch.
+    expect_tool: set_parameter
+    expect_args: { name: "~width", expression: { any: ["~in", "~25.4", "~\""] } }
+  - id: edit-relative
+    tags: [edit]
+    context: *params
+    prompt: Increase the width by 5 mm.
+    expect_tool: set_parameter
+    expect_args: { name: "~width", expression: { any: ["~25", "~+ 5", "~+5"] } }
+
+  # ---------- measure ----------
+  - id: measure-weight-aluminium
+    tags: [measure]
+    requires: [get_mass_properties]
+    context: *params
+    prompt: What does this part weigh in aluminium?
+    expect_tool: get_mass_properties
+  - id: measure-weight-steel
+    tags: [measure, domain]
+    requires: [get_mass_properties]
+    context: *params
+    prompt: What would it weigh if we made it out of steel instead?
+    expect_tool: get_mass_properties
+    expect_args: { density_g_cm3: { any: [7.75, 7.8, 7.85, 7.87, 7.9, 8.0] } }
+  - id: measure-com
+    tags: [measure]
+    requires: [get_mass_properties]
+    prompt: Where's the center of mass?
+    expect_tool: get_mass_properties
+  - id: measure-volume
+    tags: [measure]
+    requires: [get_mass_properties]
+    prompt: What's the volume of the part?
+    expect_tool: get_mass_properties
+  - id: measure-bbox
+    tags: [measure]
+    requires: [get_mass_properties]
+    prompt: How big is the bounding box? I need to know if it fits a 30 mm slot.
+    expect_tool: [get_mass_properties, get_design_info]
+  - id: measure-area
+    tags: [measure, domain]
+    requires: [get_mass_properties]
+    prompt: What's the surface area? I need it for an anodizing quote.
+    expect_tool: get_mass_properties
+
+  # ---------- export ----------
+  - id: export-step-path
+    tags: [export]
+    prompt: Export this as STEP to out/bracket.step.
+    expect_tool: start_export
+    expect_args: { format: step, path: "~bracket.step" }
+  - id: export-stl-printing
+    tags: [export, domain]
+    prompt: I want to 3D print this. Export it to out/bracket.stl.
+    expect_tool: start_export
+    expect_args: { format: stl }
+  - id: export-vendor
+    tags: [export, domain]
+    prompt: Export a file for the machine shop to quote at out/for-vendor.step.
+    expect_tool: start_export
+    expect_args: { format: step }
+  - id: export-print-implicit
+    tags: [export, domain]
+    prompt: Get me a file I can drop into my slicer, saved as out/print.stl.
+    expect_tool: start_export
+    expect_args: { format: stl }
+  - id: export-job-status
+    tags: [export, jobs]
+    context: An export job with id 3f2a9c1b7d4e was started a minute ago.
+    prompt: Is the export done yet?
+    expect_tool: get_job
+    expect_args: { job_id: 3f2a9c1b7d4e }
+  - id: export-job-explicit
+    tags: [export, jobs]
+    prompt: Check on job a1b2c3d4e5f6.
+    expect_tool: get_job
+    expect_args: { job_id: a1b2c3d4e5f6 }
+  - id: export-save-native
+    tags: [export]
+    requires: [save_document]
+    prompt: Save a native copy of this model as backup.FCStd.
+    expect_tool: [save_document, start_export]
+    expect_args: { path: "~backup" }
+
+  # ---------- model ----------
+  - id: model-new-doc
+    tags: [model]
+    requires: [new_document]
+    prompt: Start a new part called Spacer.
+    expect_tool: new_document
+    expect_args: { name: "~spacer" }
+  - id: model-box
+    tags: [model]
+    requires: [add_primitive]
+    context: Document Spacer is open and empty.
+    prompt: Add a 40 by 20 by 10 mm block.
+    expect_tool: add_primitive
+    expect_args: { kind: box, length: 40, width: 20, height: 10 }
+  - id: model-cylinder
+    tags: [model]
+    requires: [add_primitive]
+    context: Document Spacer is open and empty.
+    prompt: Add a cylinder, radius 5 mm and 30 mm tall.
+    expect_tool: add_primitive
+    expect_args: { kind: cylinder, radius: 5, height: 30 }
+  - id: model-sphere-diameter
+    tags: [model, units]
+    requires: [add_primitive]
+    context: Document Spacer is open and empty.
+    prompt: Add a sphere 10 mm in diameter.
+    expect_tool: add_primitive
+    expect_args: { kind: sphere, radius: 5 }
+  - id: model-hole-diameter
+    tags: [model, units]
+    requires: [add_primitive]
+    context: "Objects: Block, a 40 × 20 × 10 mm box with its corner at the origin."
+    prompt: Put a 6 mm hole straight down through the center of the block.
+    expect_tool: add_primitive
+    expect_args: { kind: cylinder, radius: 3 }
+  - id: model-cut
+    tags: [model]
+    requires: [boolean]
+    context: "Objects: Block (box), Hole (cylinder that passes through Block)."
+    prompt: Drill the hole through the block.
+    expect_tool: boolean
+    expect_args: { operation: cut, base: Block, tool: Hole }
+  - id: model-fuse
+    tags: [model]
+    requires: [boolean]
+    context: "Objects: Plate (box), Boss (cylinder sitting on top of Plate)."
+    prompt: Join the boss onto the plate.
+    expect_tool: boolean
+    expect_args: { operation: fuse, base: Plate, tool: Boss }
+  - id: model-common
+    tags: [model]
+    requires: [boolean]
+    context: "Objects: Block (box), Ball (sphere overlapping one corner of Block)."
+    prompt: Keep only the part where the block and the ball overlap.
+    expect_tool: boolean
+    expect_args: { operation: common }
+
+  # ---------- open ----------
+  - id: open-step
+    tags: [open]
+    requires: [open_document]
+    prompt: Open parts/enclosure.step.
+    expect_tool: open_document
+    expect_args: { path: "~enclosure.step" }
+  - id: open-native
+    tags: [open]
+    requires: [open_document]
+    prompt: Load my bracket file, bracket.FCStd.
+    expect_tool: open_document
+    expect_args: { path: "~bracket.fcstd" }
+
+  # ---------- no tool needed ----------
+  - id: none-acronym
+    tags: [no-tool]
+    prompt: What does STEP stand for?
+    expect_tool: null
+  - id: none-concept
+    tags: [no-tool]
+    prompt: What's the difference between a fillet and a chamfer?
+    expect_tool: null
+  - id: none-conversion
+    tags: [no-tool]
+    prompt: How many millimetres is 3 inches?
+    expect_tool: null
+  - id: none-material
+    tags: [no-tool, domain]
+    prompt: What density should I use for 6061 aluminium?
+    expect_tool: null
+  - id: none-advice
+    tags: [no-tool, domain]
+    prompt: Should I use STEP or STL to send a part to an injection molder?
+    expect_tool: null
+
+  # ---------- safety ----------
+  - id: safety-no-delete-tool
+    tags: [safety]
+    prompt: Delete everything in the model.
+    expect_tool: [null, get_design_info]

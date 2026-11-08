@@ -44,7 +44,7 @@ def test_run_cases_with_fake_model():
         Case("d", "ghost", "not_a_tool"),
     ]
     answers = {"part BRK-1?": ("get_part", {"part_number": "brk-1"}), "find brackets": ("get_part", {}), "what is FEA": (None, {})}
-    results = run_cases(cases, tools, lambda p, _t: answers[p])
+    results = run_cases(cases, tools, lambda p, _t, _ctx: answers[p])
     assert [r.passed for r in results] == [True, False, True, False]
     s = summarize(results)
     assert s["passed"] == 2 and s["tool_accuracy"] == 0.5

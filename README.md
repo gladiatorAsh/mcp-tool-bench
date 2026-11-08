@@ -93,6 +93,10 @@ jobs:
 
 Outputs `lint-report` and `eval-report` are paths to the JSON reports, for uploading as artifacts.
 
+## CAD agent benchmark
+
+[`benchmarks/cad`](benchmarks/cad) holds 45 realistic mechanical-engineering requests ("thicken the wall to 4 mm", "what would it weigh in steel?", "get me a file for my slicer") with the first tool call a good agent should make. It runs against [freecad-mcp-server](https://github.com/gladiatorAsh/freecad-mcp-server) and [fusion-mcp-server](https://github.com/gladiatorAsh/fusion-mcp-server), and a weekly workflow benchmarks several models on GitHub Models.
+
 ## What lint checks
 
 | Rule | Level | Why it matters |
@@ -108,7 +112,9 @@ Outputs `lint-report` and `eval-report` are paths to the JSON reports, for uploa
 - [x] `lint` over stdio and Streamable HTTP with the MCP Python SDK 2.x
 - [x] `eval` engine: subset argument matching, accuracy and latency summary, JSON reports
 - [x] Tests, including an in-process server
-- [ ] Compare several models in one run and write an HTML report
+- [x] Compare several models in one run (`--model` repeated), with a comparison table
+- [x] CAD agent benchmark: 45 cases, run weekly on GitHub Models
+- [ ] HTML report
 - [x] GitHub Action: lint and eval on every PR, with annotations and a job summary
 - [x] Release workflow: tag to publish on PyPI (trusted publishing)
 - [ ] Protocol conformance probes: stateless requests, `tools/list` caching (`ttlMs`), Tasks lifecycle

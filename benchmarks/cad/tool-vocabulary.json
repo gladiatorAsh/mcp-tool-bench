@@ -1,0 +1,67 @@
+{
+  "freecad-mcp-server": {
+    "new_document": [
+      "name"
+    ],
+    "open_document": [
+      "path"
+    ],
+    "get_design_info": [],
+    "list_parameters": [
+      "user_only"
+    ],
+    "set_parameter": [
+      "expression",
+      "name"
+    ],
+    "add_primitive": [
+      "height",
+      "kind",
+      "length",
+      "name",
+      "radius",
+      "width",
+      "x",
+      "y",
+      "z"
+    ],
+    "boolean": [
+      "base",
+      "name",
+      "operation",
+      "tool"
+    ],
+    "get_mass_properties": [
+      "density_g_cm3",
+      "name"
+    ],
+    "start_export": [
+      "format",
+      "objects",
+      "path"
+    ],
+    "get_job": [
+      "job_id"
+    ],
+    "save_document": [
+      "path"
+    ]
+  },
+  "fusion-mcp-server": {
+    "get_design_info": [],
+    "list_parameters": [
+      "user_only"
+    ],
+    "set_parameter": [
+      "expression",
+      "name"
+    ],
+    "start_export": [
+      "format",
+      "path"
+    ],
+    "get_job": [
+      "job_id"
+    ]
+  }
+}
